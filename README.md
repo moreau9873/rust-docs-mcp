@@ -1,0 +1,374 @@
+[![rust-docs banner](./assets/rust_docs_banner.jpeg)](https://github.com/snowmead/rust-docs-mcp)
+
+# Rustdocs MCP Server
+
+[![Crates.io](https://img.shields.io/crates/v/rust-docs-mcp.svg)](https://crates.io/crates/rust-docs-mcp)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Discord](https://img.shields.io/badge/Discord-Join%20Server-7289DA?logo=discord&logoColor=white)](https://discord.gg/ak2yTNN7)
+[![Build Status](https://github.com/snowmead/rust-docs-mcp/workflows/Rust/badge.svg)](https://github.com/snowmead/rust-docs-mcp/actions)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/snowmead/rust-docs-mcp)
+
+_Rust is the language of AI_
+
+An MCP (Model Context Protocol) server that provides comprehensive access to
+Rust crate documentation, source code analysis, dependency trees, and module
+structure visualization. Built for agents to gain quality insights into Rust
+projects and build with confidence.
+
+## Warning
+
+This is an entirely vibe coded project and was created as an experiment to see if LLMs can build a fully functional tool without human oversight.
+
+## The Problem: Agents Building in the Dark
+
+The rise of AI agents has revolutionized software development, with new tools
+and libraries emerging at an unprecedented pace. However, this rapid evolution
+creates a critical challenge: **agents cannot reliably build with tools they
+weren't trained on**.
+
+When an agent tries to use a new Rust crate:
+
+- 🚫 **Training data is outdated** — The model hasn't seen recent crates or API
+  changes
+- 🚫 **Documentation scraping is inefficient** — Web scraping GitHub or docs.rs
+  is slow and unreliable
+- 🚫 **Examples aren't enough** — Copy-pasting README examples provides
+  surface-level understanding
+- 🚫 **Internal structure is opaque** — Agents can't explore how modules,
+  traits, and types interconnect
+
+This leads to frustrated developers watching their agents fail repeatedly,
+guessing at APIs, and producing broken code.
+
+## The Solution: Deep Crate Intelligence
+
+This MCP server gives agents the tools they need to **truly understand** Rust
+crates:
+
+- 🔍 **Explore internal structure** — Navigate module hierarchies and type
+  relationships
+- 📖 **Access complete documentation** — Full rustdoc with signatures, fields,
+  and methods
+- 🔗 **Trace dependencies** — Understand what a crate depends on and why
+- 💾 **Work offline** — Cache crates locally for instant, reliable access
+- 🎯 **Query precisely** — Search by pattern, kind, or path to find exactly
+  what's needed
+
+With these capabilities, agents can build confidently with any Rust crate — even
+ones released yesterday.
+
+## Agent Capabilities
+
+- [x] **Multi-source caching** — crates.io, GitHub repositories, local
+      filesystem paths
+- [x] **Workspace support** — Individual member analysis and caching for cargo
+      workspaces
+- [x] **Documentation search** — Pattern matching with kind/path filtering and
+      preview modes
+- [x] **Item inspection** — Detailed signatures, fields, methods, and
+      documentation strings
+- [x] **Source code access** — Line-level precision with parameterized
+      surrounding context
+- [x] **Dependency analysis** — Direct and transitive dependency trees with
+      metadata
+- [x] **Module structure** — Hierarchical tree generation via cargo-modules
+      integration
+- [x] **Offline operation** — Full functionality after initial crate caching
+- [x] **Token management** — Response truncation and preview modes for LLM
+      compatibility
+
+## MCP Tools
+
+### Cache Management
+
+- `cache_crate` - Download and cache a crate from various sources. Set
+  `source_type` to one of: `cratesio`, `github`, or `local`
+  - **For cratesio**: Provide `version` (e.g., `{crate_name: "serde", source_type: "cratesio", version: "1.0.215"}`)
+  - **For github**: Provide `github_url` and either `branch` OR `tag` (e.g., `{crate_name: "my-crate", source_type: "github", github_url: "https://github.com/user/repo", tag: "v1.0.0"}`)
+  - **For local**: Provide `path`, optional `version` (e.g., `{crate_name: "my-crate", source_type: "local", path: "~/projects/my-crate"}`)
+  - **Optional `features`**: Specific features to enable instead of `--all-features`. Use for crates with mutually exclusive features (e.g., `{crate_name: "leptos-use", source_type: "cratesio", version: "0.15.8", features: ["axum"]}`)
+- `remove_crate` - Remove cached crate versions to free disk space
+- `list_cached_crates` - View all cached crates with versions and sizes
+- `list_crate_versions` - List cached versions for a specific crate
+- `get_crates_metadata` - Batch metadata queries for multiple crates
+- `cache_operations` - Manage and monitor background caching operations (list, status, cancel, clear)
+
+Crates.io downloads require an exact version, such as `9.3.1`. If a version is
+rejected, the error lists available non-yanked releases in descending semver
+order. Choose one and retry. Partial versions such as `9` and `9.3` never select
+a release automatically. Cached GitHub and local source versions keep their
+original identifiers.
+
+### Documentation Queries
+
+- `list_crate_items` - Browse all items in a crate with optional filtering
+- `search_items` - Full search with complete documentation (may hit token
+  limits)
+- `search_items_preview` - Lightweight search returning only IDs, names, and
+  types
+- `get_item_details` - Detailed information about specific items (signatures,
+  fields, etc.)
+- `get_item_docs` - Extract just the documentation string for an item
+- `get_item_source` - View source code with configurable context lines
+
+### Dependency Analysis
+
+- `get_dependencies` - Analyze direct and transitive dependencies with filtering
+
+### Structure Analysis
+
+- `structure` - Generate hierarchical module tree using integrated cargo-modules
+
+### Search
+
+- `search_items_fuzzy` - Fuzzy search with typo tolerance and semantic
+  similarity
+
+### Feature selection and re-exports
+
+Cache, documentation, search, and dependency tools accept the same three fields:
+
+| Request | Build behavior |
+| --- | --- |
+| All three fields omitted | Try all features, then Cargo defaults, then no defaults |
+| `features: ["axum"]` | Enable only `axum`, without defaults or fallback |
+| `features: ["axum"], no_default_features: false` | Add `axum` to Cargo defaults |
+| `features: []` or `no_default_features: true` | Disable default features |
+| `no_default_features: false` or `all_features: false` | Use Cargo defaults only |
+| `all_features: true` | Enable every feature, without fallback |
+
+`all_features: true` cannot be combined with a feature list or
+`no_default_features: true`. Explicit requests never fall back to another set.
+
+Feature selections are separate cache variants. Names are sorted and deduplicated
+before computing the cache key. A query must supply the same feature options as
+the cache request to use that variant. Omitted options select the automatic
+fallback variant, regardless of which variant was cached last. Queries generate
+missing variants from the cached source. Item IDs belong to a variant; pass its
+feature options when requesting an item's docs, details, or source.
+
+```json
+{"crate_name":"leptos-use","version":"0.15.8","features":["axum"],"pattern":"use_"}
+```
+
+Use this request with `search_items_preview` to search a selected feature set.
+`list_cached_crates` and `list_crate_versions` report each variant's requested
+features, effective features, and toolchain. Dependency metadata uses the same
+successful feature selection as the docs, including automatic fallback.
+
+Search and listing include public `use` declarations and renamed imports.
+`get_item_details` returns the import signature and a `reexport` object containing
+its source, target path, target crate, and target ID when rustdoc provides them.
+For `pub use graphql_client`, search for `graphql_client` in the wrapper crate.
+To find `GraphQLQuery` inside that dependency, use `get_dependencies` to resolve
+its package/version, then query that crate explicitly. Searching a wrapper does
+not download or recursively search its dependencies. External target IDs refer
+to the wrapper's rustdoc data; search the target crate for its own item IDs.
+
+## Configuration
+
+### Cache Directory
+
+By default, crates are cached in `~/.rust-docs-mcp/cache/`. You can customize
+this location using:
+
+```bash
+# Command line option
+rust-docs-mcp --cache-dir /custom/path/to/cache
+# or set the environment variable
+export RUST_DOCS_MCP_CACHE_DIR=/custom/path/to/cache
+rust-docs-mcp
+```
+
+### GitHub Authentication
+
+To access private repositories or increase GitHub API rate limits, set the
+`GITHUB_TOKEN` environment variable:
+
+```bash
+export GITHUB_TOKEN=your_github_personal_access_token
+```
+
+Benefits of authentication:
+
+- **Access private repositories** — Cache and analyze private Rust crates
+- **Higher rate limits** — 5,000 requests/hour (vs 60 unauthenticated)
+- **Avoid rate limit errors** — Essential for caching multiple GitHub-hosted
+  crates
+
+### Each crate version stores
+
+- Complete source code in `source/` directory
+- Cache metadata and timestamps in `metadata.json`
+- `variants/{fingerprint}/` contains `docs.json`, `dependencies.json`,
+  `search_index/`, and `build.json` for each completed feature selection.
+- Workspace members use `members/{member-name}/variants/{fingerprint}/`.
+  Their source and member metadata remain shared.
+
+Documentation from older releases has no recorded feature selection. It remains
+on disk but is regenerated on the first query, using the existing source. A
+failed build leaves completed variants intact. `cache_crate` with `update: true`
+refreshes the source and invalidates all variants of that crate/version on
+success; `remove_crate` removes the source and all its variants.
+
+## Installation
+
+### Quick Install
+
+```bash
+curl -sSL https://raw.githubusercontent.com/snowmead/rust-docs-mcp/main/install.sh | bash
+```
+
+### Installation Options
+
+#### One-liner (Recommended)
+
+```bash
+curl -sSL https://raw.githubusercontent.com/snowmead/rust-docs-mcp/main/install.sh | bash
+```
+
+#### Custom install directory
+
+```bash
+curl -sSL https://raw.githubusercontent.com/snowmead/rust-docs-mcp/main/install.sh | bash -s -- --install-dir /usr/local/bin
+```
+
+#### Cargo Install
+
+```bash
+cargo install rust-docs-mcp
+```
+
+#### Building from Source
+
+##### Requirements
+
+- Rust nightly toolchain (for Rustdoc JSON generation)
+
+  ```bash
+  rustup toolchain install nightly-2026-05-22
+  ```
+
+  Runtime prefers `nightly-2026-05-22`, which provides rustc
+  `1.97.0-nightly (e96c36b6f 2026-05-21)`, so documentation generation can
+  compile modern crates. The `rustdoc-types` dependency is kept in sync with
+  that rustdoc JSON format. If the dated toolchain is missing, the runtime
+  falls back to plain `nightly`, but only when it emits the same rustdoc JSON
+  format version (57). A newer nightly is accepted only if its JSON format is compatible. You can override the
+  choice with:
+
+  ```bash
+  export RUST_DOCS_MCP_TOOLCHAIN=nightly
+  ```
+
+  This override selects the compiler for documentation and dependency metadata;
+  it does not change the toolchain used to compile this executable. There is no
+  automatic compiler switch after an MSRV or unstable-syntax failure. Such errors
+  report the selected toolchain and the override needed to try a newer installed
+  nightly. An incompatible JSON format still requires an application update.
+  `rust-docs-mcp --version` reports the tested pin and configured override without
+  compiling a probe. `rust-docs-mcp doctor` checks the actual selected compiler.
+  Restart a running MCP server after changing the environment variable.
+
+
+- Network access to download crates from [crates.io](https://crates.io)
+
+```bash
+git clone https://github.com/snowmead/rust-docs-mcp
+cd rust-docs-mcp/rust-docs-mcp
+cargo build --release
+./target/release/rust-docs-mcp install
+```
+
+### CLI Commands
+
+```bash
+rust-docs-mcp                   # Start MCP server (same as `serve`)
+rust-docs-mcp serve             # Start MCP server explicitly
+
+# Blocking cache commands, with JSON results on stdout
+rust-docs-mcp cache list
+rust-docs-mcp cache add serde serde_json@1 chrono rand tokio
+rust-docs-mcp cache add semver@1.0.0
+rust-docs-mcp cache add leptos-use@0.15.8 --features axum
+rust-docs-mcp cache update --all
+rust-docs-mcp cache update serde tokio
+
+# One-shot operations (stateless – print JSON to stdout and exit)
+rust-docs-mcp call cache-crate \
+  --params '{"crate_name":"serde","source_type":"cratesio","version":"1.0.215"}'
+
+rust-docs-mcp call search-items-fuzzy \
+  --params '{"crate_name":"serde","version":"1.0.215","query":"Deserialize","limit":10}'
+
+rust-docs-mcp call list-cached-crates
+
+rust-docs-mcp call list-crate-versions \
+  --params '{"crate_name":"serde"}'
+
+# Maintenance commands
+rust-docs-mcp install           # Install to ~/.local/bin
+rust-docs-mcp install --force   # Force overwrite existing installation
+rust-docs-mcp doctor            # Verify system environment and dependencies
+rust-docs-mcp doctor --json     # Output diagnostic results in JSON format
+rust-docs-mcp update            # Update to latest version from GitHub
+rust-docs-mcp --help            # Show help
+```
+
+`cache add` resolves an omitted version to the latest non-yanked stable release.
+A complete version such as `1.0.0` pins that version exactly; `1`, `1.2`, and
+quoted requirements such as `'serde@>=1,<2'` select the highest matching release.
+Prereleases require an explicit matching prerelease requirement.
+
+`cache update` adds the latest stable crates.io release with the cached feature
+selections. It retains older versions, skips local/Git sources, and skips variants
+already present at the latest version. Both batch commands continue after an
+individual failure, print every result in a JSON `results` array, and exit with
+status 1 if any crate failed. Progress goes to stderr. `cache list` needs no network.
+`--cache-dir` works before or after the subcommand.
+
+> **Note:** `call cache-crate` is **blocking** — it downloads the crate,
+> generates documentation, and builds the search index before returning.
+> This is different from MCP mode where `cache_crate` returns a task ID
+> immediately and completes in the background. If a one-shot tool returns
+> an error JSON response, the CLI prints that JSON to stdout and exits with
+> status 1.
+>
+> Available one-shot tools: `cache-crate`, `search-items-fuzzy`,
+> `search-items-preview`, `search-items`, `list-crate-items`,
+> `get-item-details`, `get-item-docs`, `get-item-source`,
+> `list-cached-crates`, `list-crate-versions`, `get-dependencies`,
+> `structure`.
+
+### Troubleshooting
+
+If you encounter issues during installation or runtime, run the doctor command
+to diagnose common problems:
+
+```bash
+rust-docs-mcp doctor
+```
+
+The doctor command checks:
+
+- Rust toolchain availability (stable + nightly)
+- Git installation
+- Network connectivity to crates.io and GitHub
+- Cache directory permissions and disk space
+- Rustdoc JSON generation capability
+- Optional dependencies (e.g., codesign on macOS)
+
+For programmatic integration, use `--json` flag to get structured output.
+
+### MCP Configuration
+
+Add the server to your MCP configuration:
+
+```json
+{
+  "rust-docs": {
+    "command": "/path/to/rust-docs-mcp/target/release/rust-docs-mcp",
+    "transport": "stdio"
+  }
+}
+```
