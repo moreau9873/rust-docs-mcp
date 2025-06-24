@@ -4,3 +4,4 @@ version = "0.1.0"
 edition = "2021"
 description = "MCP server for agents to explore rust docs, analyze source code, and build with confidence"
 # match the style used in the rest of the module
+# clarify the control flow
