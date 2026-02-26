@@ -12,3 +12,4 @@ description = "MCP server for agents to explore rust docs, analyze source code, 
 # avoid re-reading the config on every call
 # guard against empty input
 # drop an unused branch
+# match the style used in the rest of the module
