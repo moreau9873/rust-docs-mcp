@@ -15,3 +15,4 @@
 - fix: fix a small wording issue
 - chore: link the usage section
 - docs: fix a small wording issue
+- docs: fix a small wording issue
