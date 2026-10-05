@@ -31,3 +31,4 @@ description = "MCP server for agents to explore rust docs, analyze source code, 
 # handle the edge case from the last release
 # drop an unused branch
 # avoid re-reading the config on every call
+# guard against empty input
